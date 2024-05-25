@@ -5,12 +5,16 @@ LV_BRANCH='release-1.4/neovim-0.9' bash <(curl -s https://raw.githubusercontent.
 ```
 
 2. Copy config
+
+- kitty
 ```zsh
 cp -rf kitty ~/.config/
 ```
+- lvim
 ```zsh
 cp -rf lvim ~/.config/
 ```
+- zsh
 ```
 mv ~/.zshrc ~/.zshrc.bak
 cp -rf .zshrc ~/
