@@ -1,6 +1,8 @@
 # pyright: reportMissingImports=false
 import dbus
 import datetime
+from mpd import MPDClient
+
 from kitty.boss import get_boss
 from kitty.fast_data_types import Screen, add_timer
 from kitty.rgb import Color
@@ -37,7 +39,7 @@ def _draw_left_status(
     extra = screen.cursor.x - before - max_title_length
     if extra > 0:
         screen.cursor.x -= extra + 1
-        screen.draw("…")
+        screen.draw("")
     if trailing_spaces:
         screen.draw(" " * trailing_spaces)
     if timer_id is None:
@@ -52,8 +54,31 @@ def _draw_left_status(
     return end
 
 
+def currently_mpc_playing():
+    """Get the currently playing media information from MPD."""
+    client = MPDClient()
+    client.timeout = 10
+    client.idletimeout = 5
+
+    try:
+        client.connect("localhost", 6600)
+        status = client.status()
+        if status["state"] == "play":
+            playlist = client.currentsong()
+        title = playlist.get("title", "")
+        status = f" {title} "
+
+    except Exception:
+        status = ""
+
+    finally:
+        client.close()
+
+    return status
+
+
 def currently_playing() -> str:
-    """Get the currently playing media information."""
+    """Get the currently playing media information from Spotify."""
     status = ""
     try:
         session_bus = dbus.SessionBus()
@@ -64,12 +89,10 @@ def currently_playing() -> str:
             spotify_bus, "org.freedesktop.DBus.Properties"
         )
         metadata = spotify_properties.Get("org.mpris.MediaPlayer2.Player", "Metadata")
-
         status += f" {metadata.get('xesam:title', '')} "
 
     except Exception:
         status = ""
-
     return status
 
 
@@ -79,7 +102,9 @@ def _draw_right_status(screen: Screen, is_last: bool) -> int:
         return screen.cursor.x
 
     current_time = datetime.datetime.now().strftime(" %I:%M %p ")
-    song_info = currently_playing()
+    song_info = (
+        currently_playing() if currently_playing() != "" else currently_mpc_playing()
+    )
 
     right_status_items = [song_info, current_time]
     right_status_length = calc_draw_spaces(*right_status_items)
